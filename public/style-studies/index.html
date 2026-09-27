@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#f8fbf6" />
+  <title>동물 친구들 · 스타일 시안</title>
+  <style>
+    *{box-sizing:border-box}body{margin:0;background:#f8fbf6;color:#294647;font-family:system-ui,-apple-system,'Apple SD Gothic Neo',sans-serif}main{max-width:1250px;margin:auto;padding:26px 22px 64px}a{color:inherit}header{display:flex;align-items:center;justify-content:space-between;gap:16px}header a{font-size:13px;font-weight:800;text-decoration:none;color:#579171;background:#e8f4e9;padding:10px 15px;border-radius:20px}h1{font-size:clamp(28px,4vw,45px);line-height:1.2;margin:32px 0 10px;letter-spacing:-1.5px}p{color:#698278;line-height:1.6;margin:0 0 12px}.note{background:#fff6df;color:#9b7950;padding:11px 15px;border-radius:12px;font-size:13px;font-weight:700;display:inline-block;margin:6px 0 26px}.heading{display:grid;grid-template-columns:120px 1fr 1fr;gap:16px;align-items:end;margin-bottom:10px;font-weight:900}.heading span:not(:first-child){text-align:center;font-size:17px}.row{display:grid;grid-template-columns:120px 1fr 1fr;gap:16px;margin-bottom:16px}.label{display:flex;flex-direction:column;justify-content:center;gap:6px}.label b{font-size:27px;color:#3d7258}.label small{color:#81978d;line-height:1.4;font-weight:700}.card{min-width:0;background:#fff;border:1px solid #e1ece2;border-radius:20px;overflow:hidden;box-shadow:0 8px 20px #315a4810;text-decoration:none}.art{height:270px;display:grid;place-items:center;background-color:#f5f3e9;background-image:linear-gradient(45deg,#e9ede6 25%,transparent 25%),linear-gradient(-45deg,#e9ede6 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#e9ede6 75%),linear-gradient(-45deg,transparent 75%,#e9ede6 75%);background-size:22px 22px;background-position:0 0,0 11px,11px -11px,-11px 0}.art img{display:block;width:100%;height:100%;object-fit:contain}.card footer{padding:8px 14px;display:flex;align-items:center;justify-content:space-between;font-size:12px;font-weight:800;color:#6b8778}.tiny{width:56px;height:56px;object-fit:contain;background:#d5e8b1;border-radius:12px}.sea .tiny{background:#9ddce2}@media(max-width:720px){main{padding:19px 12px 40px}.heading,.row{grid-template-columns:48px 1fr 1fr;gap:8px}.label b{font-size:22px}.label small{display:none}.art{height:180px}.card footer{padding:5px 7px}.card footer span{font-size:10px}.tiny{width:36px;height:36px}.heading span:not(:first-child){font-size:13px}}@media(max-width:460px){.art{height:145px}header a{font-size:11px}.card footer span{font-size:9px}}
+  </style>
+</head>
+<body>
+  <main>
+    <header><strong>동글동글 동물 친구들 · 이미지 시안</strong><a href="../">← 게임으로</a></header>
+    <h1>어떤 그림이 좋을까요?</h1>
+    <p>육상은 위에서 본 레서팬더, 물속은 옆에서 본 크라운피시로 각각 다섯 가지 방향을 만들었습니다. 카드를 누르면 원본을 볼 수 있습니다.</p>
+    <div class="note">현재 게임에는 적용하지 않은 비교 시안입니다. A~E 중 마음에 드는 방향을 알려주시면 나머지 동물을 제작합니다.</div>
+    <div class="heading"><span>스타일</span><span>🌿 육상 · 레서팬더</span><span>🫧 물속 · 크라운피시</span></div>
+    <section id="gallery"></section>
+  </main>
+  <script>
+    const styles=[['A','선명한 스티커'],['B','파스텔 그림책'],['C','말랑한 클레이'],['D','종이·펠트'],['E','단순한 치비']];
+    document.querySelector('#gallery').innerHTML=styles.map(([key,name])=>`<div class="row"><div class="label"><b>${key}</b><small>${name}</small></div>${['land','sea'].map(world=>`<a class="card ${world}" href="./${world}-${key.toLowerCase()}.png" target="_blank" rel="noopener"><div class="art"><img src="./${world}-${key.toLowerCase()}.png" alt="${name} ${world==='land'?'레서팬더':'크라운피시'} 시안"></div><footer><span>원본 보기 ↗</span><img class="tiny" src="./${world}-${key.toLowerCase()}.png" alt="작은 크기 미리보기"></footer></a>`).join('')}</div>`).join('');
+  </script>
+</body>
+</html>
