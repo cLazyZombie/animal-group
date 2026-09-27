@@ -147,16 +147,31 @@ export class AnimalGame {
 
   private loadTextures(): void {
     SPECIES.filter(species => species.world === this.world).forEach(species => {
-      const canvas = document.createElement('canvas');
-      canvas.width = 512;
-      canvas.height = 512;
-      const texture = new THREE.CanvasTexture(canvas);
-      texture.colorSpace = THREE.SRGBColorSpace;
-      this.textures.set(species.id, texture);
+      const rightCanvas = document.createElement('canvas');
+      rightCanvas.width = 512;
+      rightCanvas.height = 512;
+      const rightTexture = new THREE.CanvasTexture(rightCanvas);
+      rightTexture.colorSpace = THREE.SRGBColorSpace;
+      this.textures.set(`${species.id}:right`, rightTexture);
+      const leftCanvas = this.world === 'sea' ? document.createElement('canvas') : undefined;
+      const leftTexture = leftCanvas ? new THREE.CanvasTexture(leftCanvas) : undefined;
+      if (leftCanvas && leftTexture) {
+        leftCanvas.width = 512;
+        leftCanvas.height = 512;
+        leftTexture.colorSpace = THREE.SRGBColorSpace;
+        this.textures.set(`${species.id}:left`, leftTexture);
+      }
       const image = new Image();
       image.onload = () => {
-        canvas.getContext('2d')?.drawImage(image, 0, 0, 512, 512);
-        texture.needsUpdate = true;
+        rightCanvas.getContext('2d')?.drawImage(image, 0, 0, 512, 512);
+        rightTexture.needsUpdate = true;
+        if (leftCanvas && leftTexture) {
+          const context = leftCanvas.getContext('2d');
+          context?.translate(512, 0);
+          context?.scale(-1, 1);
+          context?.drawImage(image, 0, 0, 512, 512);
+          leftTexture.needsUpdate = true;
+        }
       };
       image.src = animalAssetUrl(species.id);
     });
@@ -255,13 +270,15 @@ export class AnimalGame {
   }
 
   private addUnit(species: Species, level: number, u: number, v: number): Unit {
-    const texture = this.textures.get(species.id);
+    const angle = random(0, Math.PI * 2);
+    const speed = this.travelSpeed(level);
+    const vx = Math.cos(angle) * speed;
+    const vy = Math.sin(angle) * speed;
+    const texture = this.textures.get(`${species.id}:${this.world === 'sea' && vx < 0 ? 'left' : 'right'}`);
     const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true, depthTest: false, depthWrite: false }));
     sprite.position.z = 2 + level;
     this.scene.add(sprite);
-    const angle = random(0, Math.PI * 2);
-    const speed = this.travelSpeed(level);
-    const unit = { id: this.nextUnitId++, species, level, u, v, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, turn: random(0, 7), sprite };
+    const unit = { id: this.nextUnitId++, species, level, u, v, vx, vy, turn: random(0, 7), sprite };
     this.units.push(unit);
     return unit;
   }
@@ -430,10 +447,16 @@ export class AnimalGame {
       const bob = Math.sin(now * 0.003 + unit.turn) * (this.world === 'sea' ? 3 : 1.5);
       unit.sprite.position.set(unit.u * this.width, (1 - unit.v) * this.height - bob, 2 + unit.level);
       const size = this.unitSize(unit.level);
-      const facing = this.world === 'sea' && unit.vx < 0 ? -1 : 1;
-      unit.sprite.scale.set(size * facing, size, 1);
+      unit.sprite.scale.set(size, size, 1);
       const heading = Math.atan2(-unit.vy, unit.vx);
-      (unit.sprite.material as THREE.SpriteMaterial).rotation = this.world === 'zoo' ? heading - Math.PI / 2 : heading - (unit.vx < 0 ? Math.PI : 0);
+      const material = unit.sprite.material as THREE.SpriteMaterial;
+      if (this.world === 'sea') {
+        const facingLeft = unit.vx < 0;
+        material.map = this.textures.get(`${unit.species.id}:${facingLeft ? 'left' : 'right'}`) || null;
+        material.rotation = heading - (facingLeft ? Math.PI : 0);
+      } else {
+        material.rotation = heading - Math.PI / 2;
+      }
     }
   }
 

@@ -1,4 +1,4 @@
-const CACHE = 'animal-loop-v5';
+const CACHE = 'animal-loop-v6';
 const ROOT = new URL('./', self.location.href);
 const ANIMALS = ['toucan', 'monkey', 'anteater', 'redpanda', 'crocodile', 'ray', 'clownfish', 'sunfish', 'whaleshark', 'seadragon'];
 self.addEventListener('install', event => {
@@ -8,7 +8,7 @@ self.addEventListener('install', event => {
     await cache.put(ROOT, response.clone());
     const html = await response.text();
     const assets = [...html.matchAll(/(?:src|href)="([^\"]+\/assets\/[^\"]+)"/g)].map(match => match[1]);
-    await cache.addAll(['manifest.webmanifest', 'icon-192.png', 'icon-512.png', ...ANIMALS.map(id => `animals/${id}.png`), ...assets].map(path => new URL(path, ROOT)));
+    await cache.addAll(['manifest.webmanifest', 'favicon-64.png', 'apple-touch-icon.png', 'icon-192.png', 'icon-512.png', 'icon-maskable-192.png', 'icon-maskable-512.png', ...ANIMALS.map(id => `animals/${id}.png`), ...assets].map(path => new URL(path, ROOT)));
   })());
   self.skipWaiting();
 });

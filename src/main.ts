@@ -1,5 +1,5 @@
 import './styles.css';
-import { animalAssetUrl, SPECIES, type World } from './art';
+import { animalAssetUrl, type World } from './art';
 import { AnimalGame } from './game';
 import { GameAudio } from './audio';
 
@@ -41,7 +41,7 @@ function renderLobby(): void {
   app.innerHTML = `
     <div class="lobby-shell">
       <header class="site-header">
-        <div class="brand"><span class="brand-mark">◎</span><span>동글동글 <b>동물 친구들</b></span></div>
+        <div class="brand"><img class="brand-mark" src="${import.meta.env.BASE_URL}icon-192.png" alt="" /><span>동글동글 <b>동물 친구들</b></span></div>
         <div class="header-right"><span class="header-pill">함께 그리는 1분 게임</span><button id="sound-toggle" class="icon-button" aria-label="소리 켜기 또는 끄기">${soundIcon()}</button></div>
       </header>
       <main class="lobby-main">
@@ -86,35 +86,37 @@ function startGame(world: World): void {
   game = undefined;
   void audio.start();
   const isZoo = world === 'zoo';
-  const title = isZoo ? '동물원' : '수족관';
-  const themeAnimals = SPECIES.filter(item => item.world === world);
   app.innerHTML = `
     <div class="game-shell ${isZoo ? 'zoo-theme' : 'sea-theme'}">
-      <header class="game-header">
-        <button id="back-button" class="back-button" aria-label="처음으로 돌아가기">← <span>처음으로</span></button>
-        <div class="game-title"><span class="game-title-icon">${isZoo ? '🌿' : '🫧'}</span><span>${title} 놀이터</span></div>
-        <button id="sound-toggle" class="icon-button game-sound" aria-label="소리 켜기 또는 끄기">${soundIcon()}</button>
-      </header>
       <main class="play-main">
-        <div class="hud">
-          <div class="hud-stat score-stat"><span class="stat-icon">⭐</span><span><small>내 점수</small><strong id="score-value">0</strong></span></div>
+        <div class="hud" aria-label="게임 점수와 남은 시간">
+          <div class="hud-stat score-stat"><small>점수</small><strong id="score-value">0</strong></div>
           <div class="timer-wrap"><div class="timer-ring"><div class="timer-inner"><small>남은 시간</small><strong id="time-value">60</strong></div></div></div>
-          <div class="hud-stat best-stat"><span class="stat-icon">🏆</span><span><small>최고 점수</small><strong>${bestScore(world).toLocaleString()}</strong></span></div>
+          <div class="hud-stat best-stat"><small>최고</small><strong>${bestScore(world).toLocaleString()}</strong></div>
         </div>
-        <div class="field-wrap"><div id="game-field" class="game-field"><div class="field-decoration field-decoration-one"></div><div class="field-decoration field-decoration-two"></div><div class="field-caption">${isZoo ? '🌼 친구들이 뛰노는 초원' : '🪸 반짝반짝 바닷속'}</div><div id="hint" class="hint-bubble">같은 동물 둘 이상을 동그라미로 둘러보세요!</div></div></div>
-        <div class="play-bottom"><div class="species-strip">${themeAnimals.map(species => `<span title="${species.name}">${animalImage(species.id)}<small>${species.name}</small></span>`).join('')}</div><div class="rule-chip">같은 동물 2마리 이상 = 변신! <b>✦</b></div></div>
+        <div class="field-wrap"><div id="game-field" class="game-field"><div class="field-decoration field-decoration-one"></div><div class="field-decoration field-decoration-two"></div><div id="hint" class="hint-bubble">같은 동물 둘 이상을 동그라미로 둘러보세요!</div></div></div>
+        <div id="final-countdown" class="final-countdown" aria-hidden="true"></div>
       </main>
     </div>`;
-  app.querySelector<HTMLButtonElement>('#back-button')!.addEventListener('click', renderLobby);
-  app.querySelector<HTMLButtonElement>('#sound-toggle')!.addEventListener('click', toggleSound);
   const field = app.querySelector<HTMLElement>('#game-field')!;
   const scoreEl = app.querySelector<HTMLElement>('#score-value')!;
   const timeEl = app.querySelector<HTMLElement>('#time-value')!;
   const timer = app.querySelector<HTMLElement>('.timer-ring')!;
   const hint = app.querySelector<HTMLElement>('#hint')!;
+  const countdown = app.querySelector<HTMLElement>('#final-countdown')!;
   game = new AnimalGame(field, world, {
     onScore(score) { scoreEl.textContent = score.toLocaleString(); scoreEl.classList.remove('score-bump'); void scoreEl.offsetWidth; scoreEl.classList.add('score-bump'); },
-    onTime(seconds) { timeEl.textContent = String(seconds); timer.style.setProperty('--progress', `${seconds / 60 * 100}%`); timer.classList.toggle('urgent', seconds <= 10); },
+    onTime(seconds) {
+      timeEl.textContent = String(seconds);
+      timer.style.setProperty('--progress', `${seconds / 60 * 100}%`);
+      timer.classList.toggle('urgent', seconds <= 10);
+      countdown.classList.remove('show');
+      if (seconds > 0 && seconds <= 5) {
+        countdown.textContent = String(seconds);
+        void countdown.offsetWidth;
+        countdown.classList.add('show');
+      }
+    },
     onFinish(score) { audio.finish(); showResult(score, world); },
     onMerge(level) { audio.merge(level); },
     onHint(message) {
