@@ -1,6 +1,6 @@
 import './styles.css';
 import { animalAssetUrl, type World } from './art';
-import { AnimalGame } from './game';
+import { AnimalGame, GAME_DURATION_SECONDS } from './game';
 import { GameAudio } from './audio';
 
 type ScoreRecord = { score: number; world: World; at: number };
@@ -42,13 +42,13 @@ function renderLobby(): void {
     <div class="lobby-shell">
       <header class="site-header">
         <div class="brand"><img class="brand-mark" src="${import.meta.env.BASE_URL}icon-192.png" alt="" /><span>동글동글 <b>동물 친구들</b></span></div>
-        <div class="header-right"><span class="header-pill">함께 그리는 1분 게임</span><button id="sound-toggle" class="icon-button" aria-label="소리 켜기 또는 끄기">${soundIcon()}</button></div>
+        <div class="header-right"><span class="header-pill">함께 그리는 1분 30초 게임</span><button id="sound-toggle" class="icon-button" aria-label="소리 켜기 또는 끄기">${soundIcon()}</button></div>
       </header>
       <main class="lobby-main">
         <div class="hero-copy">
           <div class="eyebrow"><span class="eyebrow-dot"></span> 손끝에서 시작되는 동물 친구들의 모험</div>
           <h1>동그라미 하나로<br /><em>친구들을 모아봐!</em></h1>
-          <p>같은 동물을 쏙 둘러주면 더 크고 귀여운 친구로 변신!<br class="desktop-break" /> 1분 동안 신나게 모아 최고 점수에 도전해요.</p>
+          <p>같은 동물을 쏙 둘러주면 더 크고 귀여운 친구로 변신!<br class="desktop-break" /> 1분 30초 동안 신나게 모아 최고 점수에 도전해요.</p>
           <div class="how-pill"><span class="how-icon">✎</span><span>동물을 둘러 그리고 손을 떼면 합쳐져요</span></div>
         </div>
         <section class="choice-section" aria-label="놀이터 고르기">
@@ -68,7 +68,7 @@ function renderLobby(): void {
             </button>
           </div>
         </section>
-        <div class="lobby-footer"><span>👆 여러 명이 동시에 그릴 수 있어요</span><span>🏆 최고 점수는 이 기기에 저장돼요</span><span>✨ 동물은 10단계까지 커져요</span></div>
+        <div class="lobby-footer"><span>👆 여러 명이 동시에 그릴 수 있어요</span><span>🏆 최고 점수는 이 기기에 저장돼요</span><span>✨ 동물은 6단계까지 커져요</span></div>
       </main>
     </div>`;
   app.querySelectorAll<HTMLButtonElement>('[data-world]').forEach(button => button.addEventListener('click', () => startGame(button.dataset.world as World)));
@@ -91,7 +91,7 @@ function startGame(world: World): void {
       <main class="play-main">
         <div class="hud" aria-label="게임 점수와 남은 시간">
           <div class="hud-stat score-stat"><small>점수</small><strong id="score-value">0</strong></div>
-          <div class="timer-wrap"><div class="timer-ring"><div class="timer-inner"><small>남은 시간</small><strong id="time-value">60</strong></div></div></div>
+          <div class="timer-wrap"><div class="timer-ring"><div class="timer-inner"><small>남은 시간</small><strong id="time-value">${GAME_DURATION_SECONDS}</strong></div></div></div>
           <div class="hud-stat best-stat"><small>최고</small><strong>${bestScore(world).toLocaleString()}</strong></div>
         </div>
         <div class="field-wrap"><div id="game-field" class="game-field"><div class="field-decoration field-decoration-one"></div><div class="field-decoration field-decoration-two"></div><div id="hint" class="hint-bubble">같은 동물 둘 이상을 동그라미로 둘러보세요!</div></div></div>
@@ -108,7 +108,7 @@ function startGame(world: World): void {
     onScore(score) { scoreEl.textContent = score.toLocaleString(); scoreEl.classList.remove('score-bump'); void scoreEl.offsetWidth; scoreEl.classList.add('score-bump'); },
     onTime(seconds) {
       timeEl.textContent = String(seconds);
-      timer.style.setProperty('--progress', `${seconds / 60 * 100}%`);
+      timer.style.setProperty('--progress', `${seconds / GAME_DURATION_SECONDS * 100}%`);
       timer.classList.toggle('urgent', seconds <= 10);
       countdown.classList.remove('show');
       if (seconds > 0 && seconds <= 5) {
@@ -142,7 +142,7 @@ function showResult(score: number, world: World): void {
     <div class="result-card" role="dialog" aria-modal="true" aria-label="게임 결과">
       <div class="result-confetti confetti-a">✦</div><div class="result-confetti confetti-b">✳</div><div class="result-confetti confetti-c">✦</div>
       <div class="result-mascot">${animalImage(world === 'zoo' ? 'redpanda' : 'clownfish')}</div>
-      <div class="result-eyebrow">1분 모험 완료!</div><h2>정말 멋졌어요!</h2><p>${title} 친구들이 아주 즐거웠대요</p>
+      <div class="result-eyebrow">1분 30초 모험 완료!</div><h2>정말 멋졌어요!</h2><p>${title} 친구들이 아주 즐거웠대요</p>
       <div class="result-score"><small>이번 점수</small><strong>${score.toLocaleString()}</strong><span>점</span></div>
       <div class="result-badges"><span>🏅 ${title} ${rank}등</span><span>${isNewBest ? '✨ 새로운 최고 기록!' : `🏆 최고 ${best.toLocaleString()}점`}</span></div>
       <div class="ranking"><div class="ranking-heading"><strong>이 기기의 ${title} 등수</strong><small>최고 점수 순</small></div>${records.slice(0, 5).map((record, index) => `<div class="ranking-row ${record.at === at && record.score === score ? 'current' : ''}"><span class="rank-num">${index + 1}</span><span>${new Date(record.at).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}</span><strong>${record.score.toLocaleString()}점</strong></div>`).join('')}</div>

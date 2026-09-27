@@ -195,5 +195,56 @@ button:focus-visible{outline:4px solid #f4bb5d;outline-offset:4px}
 .world-card{height:242px}
 .lobby-footer{margin-top:20px}
 }
+@media(orientation:landscape) and (max-height:500px){
+#app,.lobby-shell{height:100dvh;min-height:0;overflow:hidden}
+.site-header{height:44px;padding-left:max(12px,env(safe-area-inset-left));padding-right:max(12px,env(safe-area-inset-right))}
+.brand{font-size:clamp(15px,2vw,19px)}
+.brand-mark{width:28px;height:28px}
+.icon-button{width:34px;height:34px;font-size:18px}
+.lobby-main{max-width:none;height:calc(100dvh - 44px);padding:4px max(12px,env(safe-area-inset-right)) 8px max(12px,env(safe-area-inset-left));display:grid;grid-template-columns:minmax(165px,.85fr) minmax(0,1.8fr);gap:12px;align-items:center}
+.hero-copy{text-align:left}
+.eyebrow{display:none}
+.hero-copy h1{font-size:clamp(24px,3.8vw,36px);line-height:1.08;letter-spacing:-1px;margin:0 0 8px}
+.hero-copy p{font-size:11px;line-height:1.35}
+.desktop-break{display:none}
+.how-pill{font-size:10px;line-height:1.2;padding:6px 9px;margin-top:8px;border-radius:14px}
+.how-icon{font-size:16px}
+.choice-section{min-width:0;margin:0}
+.section-heading{font-size:14px;margin:0 0 8px}
+.section-heading small{display:none}
+.world-cards{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.world-card{height:min(56dvh,214px);border-radius:18px}
+.card-animals{transform:scale(.78);transform-origin:center 38%}
+.card-label{top:9px;left:9px;padding:4px 7px;font-size:9px}
+.card-bottom{min-height:48px;padding:5px 9px}
+.card-bottom strong{font-size:18px}
+.card-bottom small{font-size:10px}
+.card-arrow{width:28px;height:28px;font-size:17px}
+.lobby-footer{display:none}
+.hud{top:calc(env(safe-area-inset-top,0px) + 2px);height:52px;width:min(52vw,430px);max-width:none;gap:6px}
+.timer-ring{width:52px;height:52px}
+.hud-stat strong,.timer-inner strong{font-size:19px}
+.hud-stat small,.timer-inner small{font-size:9px}
+.hint-bubble{bottom:calc(env(safe-area-inset-bottom,0px) + 7px);padding:6px 9px;font-size:10px}
+.result-overlay{padding:6px max(8px,env(safe-area-inset-right)) 6px max(8px,env(safe-area-inset-left));overflow:hidden}
+.result-card{width:min(860px,100%);height:calc(100dvh - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px) - 12px);max-height:none;overflow:hidden;padding:8px 12px;border-radius:20px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-rows:auto auto auto auto auto auto 1fr;column-gap:14px;align-items:center}
+.result-confetti,.result-card>p{display:none}
+.result-mascot{grid-column:1;grid-row:1;width:42px;height:42px;margin:0 auto}
+.result-mascot img{width:40px;height:40px}
+.result-eyebrow{grid-column:1;grid-row:2;font-size:10px;margin:0}
+.result-card h2{grid-column:1;grid-row:3;font-size:22px;margin:0}
+.result-score{grid-column:1;grid-row:5;margin:4px 0;padding:5px;border-radius:12px}
+.result-score strong{font-size:30px}
+.result-score small{font-size:10px;margin-right:2px}
+.result-badges{grid-column:1;grid-row:6;gap:4px}
+.result-badges span{padding:3px 6px;font-size:9px}
+.ranking{grid-column:2;grid-row:1 / 8;margin:0;align-self:center;width:100%}
+.ranking-heading{padding:5px 7px;font-size:10px}
+.ranking-row{grid-template-columns:20px 1fr auto;gap:4px;padding:3px 6px;font-size:10px}
+.ranking-row strong{font-size:10px}
+.rank-num{width:18px;height:18px;font-size:9px}
+.result-actions{grid-column:1;grid-row:7;align-self:end;margin:4px 0 0;gap:5px}
+.result-actions button{padding:7px 5px;font-size:11px;border-radius:10px}
+}
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{animation-duration:.001ms!important;transition-duration:.001ms!important}
 }

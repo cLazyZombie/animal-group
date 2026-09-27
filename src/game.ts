@@ -16,9 +16,9 @@ export interface GameEvents {
   onHint: (message: string) => void;
 }
 
-const DURATION = 60;
-const MAX_LEVEL = 9;
-const POINTS = [30, 75, 180, 400, 850, 1700, 3300, 6300, 12000, 22000];
+export const GAME_DURATION_SECONDS = 90;
+const MAX_LEVEL = 5;
+const POINTS = [30, 75, 180, 400, 850, 1700];
 const PLAYER_COLORS = ['#ef75a7', '#7f72ec', '#f7a743', '#41bfc0', '#e97865', '#76ac61'];
 
 function clamp(value: number, min: number, max: number): number { return Math.max(min, Math.min(max, value)); }
@@ -83,7 +83,7 @@ export class AnimalGame {
   private width = 1;
   private height = 1;
   private score = 0;
-  private remaining = DURATION;
+  private remaining = GAME_DURATION_SECONDS;
   private endsAt = 0;
   private running = false;
   private lastFrame = performance.now();
@@ -119,8 +119,8 @@ export class AnimalGame {
     this.seedUnits();
     this.running = true;
     this.lastFrame = performance.now();
-    this.endsAt = this.lastFrame + DURATION * 1000;
-    this.events.onTime(DURATION);
+    this.endsAt = this.lastFrame + GAME_DURATION_SECONDS * 1000;
+    this.events.onTime(GAME_DURATION_SECONDS);
     this.frame = requestAnimationFrame(this.tick);
   }
 
@@ -305,7 +305,7 @@ export class AnimalGame {
 
   private unitSize(level: number): number {
     const base = clamp(Math.min(this.width, this.height) * 0.108, 44, 90);
-    return Math.min(base * (1 + level * 0.14), Math.min(this.width, this.height) * 0.32, 210);
+    return Math.min(base * (1 + level * 0.35), Math.min(this.width, this.height) * 0.36, 230);
   }
 
   private positionFromEvent(event: PointerEvent): Point {

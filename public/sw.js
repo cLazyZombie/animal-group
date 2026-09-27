@@ -1,4 +1,4 @@
-const CACHE = 'animal-loop-v6';
+const CACHE = 'animal-loop-v7';
 const ROOT = new URL('./', self.location.href);
 const ANIMALS = ['toucan', 'monkey', 'anteater', 'redpanda', 'crocodile', 'ray', 'clownfish', 'sunfish', 'whaleshark', 'seadragon'];
 self.addEventListener('install', event => {
