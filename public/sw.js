@@ -1,6 +1,6 @@
-const CACHE = 'animal-loop-v7';
+const CACHE = 'animal-loop-v8';
 const ROOT = new URL('./', self.location.href);
-const ANIMALS = ['toucan', 'monkey', 'anteater', 'redpanda', 'crocodile', 'ray', 'clownfish', 'sunfish', 'whaleshark', 'seadragon'];
+const ANIMALS = ['toucan', 'monkey', 'anteater', 'redpanda', 'crocodile', 'ray', 'clownfish', 'sunfish', 'whaleshark', 'seadragon', 'crowned-crane', 'eagle', 'gull', 'sky-toucan', 'macaw'];
 self.addEventListener('install', event => {
   event.waitUntil((async () => {
     const cache = await caches.open(CACHE);

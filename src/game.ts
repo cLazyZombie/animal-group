@@ -63,8 +63,23 @@ function polygonArea(points: Point[]): number {
   return Math.abs(sum) / 2;
 }
 
+function strokeLength(points: Point[]): number {
+  return points.slice(1).reduce((length, point, index) => length + Math.hypot(point.x - points[index].x, point.y - points[index].y), 0);
+}
+
+function strokeTouches(points: Point[], x: number, y: number, radius: number): boolean {
+  for (let i = 1; i < points.length; i++) {
+    const a = points[i - 1], b = points[i];
+    const dx = b.x - a.x, dy = b.y - a.y;
+    const t = clamp(((x - a.x) * dx + (y - a.y) * dy) / (dx * dx + dy * dy || 1), 0, 1);
+    if (Math.hypot(x - a.x - t * dx, y - a.y - t * dy) <= radius) return true;
+  }
+  return false;
+}
+
 export class AnimalGame {
   readonly element: HTMLElement;
+  get featuredSpeciesId(): string { return this.kinds[0].id; }
   private world: World;
   private events: GameEvents;
   private scene = new THREE.Scene();
@@ -73,6 +88,7 @@ export class AnimalGame {
   private overlay: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
   private textures = new Map<string, THREE.Texture>();
+  private kinds: Species[];
   private units: Unit[] = [];
   private decor: THREE.Object3D[] = [];
   private strokes = new Map<number, Stroke>();
@@ -96,6 +112,8 @@ export class AnimalGame {
     this.element = container;
     this.world = world;
     this.events = events;
+    const allKinds = SPECIES.filter(species => species.world === world);
+    this.kinds = world === 'numbers' ? shuffle([...allKinds]).slice(0, 5) : allKinds;
     this.renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, powerPreference: 'high-performance' });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     this.renderer.setClearColor(0xffffff, 0);
@@ -133,7 +151,10 @@ export class AnimalGame {
     this.overlay.removeEventListener('pointerup', this.pointerUp);
     this.overlay.removeEventListener('pointercancel', this.pointerCancel);
     for (const item of this.decor) this.disposeObject(item);
-    for (const unit of this.units) this.scene.remove(unit.sprite);
+    for (const unit of this.units) {
+      this.scene.remove(unit.sprite);
+      (unit.sprite.material as THREE.SpriteMaterial).dispose();
+    }
     this.textures.forEach(texture => texture.dispose());
     this.renderer.dispose();
     this.renderer.domElement.remove();
@@ -142,22 +163,23 @@ export class AnimalGame {
 
   private disposeObject(object: THREE.Object3D): void {
     this.scene.remove(object);
-    if (object instanceof THREE.Mesh) {
-      object.geometry.dispose();
-      if (Array.isArray(object.material)) object.material.forEach(m => m.dispose());
-      else object.material.dispose();
-    }
+    object.traverse(child => {
+      if (!(child instanceof THREE.Mesh)) return;
+      child.geometry.dispose();
+      if (Array.isArray(child.material)) child.material.forEach(m => m.dispose());
+      else child.material.dispose();
+    });
   }
 
   private loadTextures(): void {
-    SPECIES.filter(species => species.world === this.world).forEach(species => {
+    this.kinds.forEach(species => {
       const rightCanvas = document.createElement('canvas');
       rightCanvas.width = 512;
       rightCanvas.height = 512;
       const rightTexture = new THREE.CanvasTexture(rightCanvas);
       rightTexture.colorSpace = THREE.SRGBColorSpace;
       this.textures.set(`${species.id}:right`, rightTexture);
-      const leftCanvas = this.world === 'sea' ? document.createElement('canvas') : undefined;
+      const leftCanvas = this.world === 'sea' || this.world === 'sky' ? document.createElement('canvas') : undefined;
       const leftTexture = leftCanvas ? new THREE.CanvasTexture(leftCanvas) : undefined;
       if (leftCanvas && leftTexture) {
         leftCanvas.width = 512;
@@ -204,16 +226,21 @@ export class AnimalGame {
 
   private makeDecor(): void {
     const isSea = this.world === 'sea';
-    const palette = isSea ? [0xffffff, 0x91d4dc, 0xb8e0dd] : [0xffffff, 0xf7d98a, 0xa3d88e];
+    const palette = isSea ? [0xffffff, 0x91d4dc, 0xb8e0dd]
+      : this.world === 'sky' ? [0xffffff, 0xfbe8ad, 0xcce9f8]
+        : this.world === 'numbers' ? [0xffd98c, 0xb5d9e9, 0xf5bdd1, 0xbfe5c9]
+          : [0xffffff, 0xf7d98a, 0xa3d88e];
     for (let i = 0; i < 34; i++) {
       const material = new THREE.MeshBasicMaterial({ color: palette[i % palette.length], transparent: true, opacity: isSea ? random(0.12, 0.35) : random(0.22, 0.48), depthWrite: false });
-      const geometry = new THREE.CircleGeometry(isSea ? random(3, 12) : random(2, 5), isSea ? 20 : 7);
+      const geometry = this.world === 'numbers' && i % 3 === 0
+        ? new THREE.PlaneGeometry(random(7, 16), random(7, 16))
+        : new THREE.CircleGeometry(isSea ? random(3, 12) : random(2, 5), isSea ? 20 : 7);
       const mesh = new THREE.Mesh(geometry, material);
       mesh.userData = { u: Math.random(), v: Math.random(), phase: Math.random() * 7, speed: random(0.006, 0.022), size: random(0.7, 1.6) };
       mesh.position.z = -5;
       this.scene.add(mesh);
       this.decor.push(mesh);
-      if (!isSea && i < 15) {
+      if (this.world === 'zoo' && i < 15) {
         const flower = new THREE.Group();
         const x = Math.random(), y = Math.random();
         for (let p = 0; p < 5; p++) {
@@ -238,6 +265,21 @@ export class AnimalGame {
         this.decor.push(stalk);
       }
     }
+    if (this.world === 'sky') {
+      for (let i = 0; i < 6; i++) {
+        const cloud = new THREE.Group();
+        for (const [x, y, radius] of [[-28, 0, 25], [0, 12, 35], [31, 0, 27], [0, -8, 27]]) {
+          const puff = new THREE.Mesh(new THREE.CircleGeometry(radius, 28), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.16, depthWrite: false }));
+          puff.position.set(x, y, 0);
+          cloud.add(puff);
+        }
+        cloud.userData = { u: random(-0.1, 1), v: random(0.12, 0.88), phase: random(0, 7), speed: random(0.008, 0.018), cloud: true };
+        cloud.scale.setScalar(random(0.7, 1.5));
+        cloud.position.z = -4;
+        this.scene.add(cloud);
+        this.decor.push(cloud);
+      }
+    }
     this.updateDecorPositions();
   }
 
@@ -246,7 +288,7 @@ export class AnimalGame {
   }
 
   private seedUnits(): void {
-    const kinds = SPECIES.filter(species => species.world === this.world);
+    const kinds = this.kinds;
     const perKind = this.width < 550 ? 3 : this.width > 1500 ? 6 : 4;
     const roster = shuffle(kinds.flatMap(species => Array<Species>(perKind).fill(species)));
     const columns = this.width < 550 ? 3 : 5;
@@ -278,7 +320,7 @@ export class AnimalGame {
     const speed = this.travelSpeed(level);
     const vx = Math.cos(angle) * speed;
     const vy = Math.sin(angle) * speed;
-    const texture = this.textures.get(`${species.id}:${this.world === 'sea' && vx < 0 ? 'left' : 'right'}`);
+    const texture = this.textures.get(`${species.id}:${(this.world === 'sea' || this.world === 'sky') && vx < 0 ? 'left' : 'right'}`);
     const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true, depthTest: false, depthWrite: false }));
     sprite.position.z = 2 + level;
     this.scene.add(sprite);
@@ -336,7 +378,17 @@ export class AnimalGame {
     event.preventDefault();
     stroke.points.push(this.positionFromEvent(event));
     this.strokes.delete(event.pointerId);
-    if (stroke.points.length > 7 && polygonArea(stroke.points) > 600) this.resolveLoop(stroke);
+    if (strokeLength(stroke.points) < 35) return;
+    const touched = this.units.filter(unit => strokeTouches(stroke.points, unit.u * this.width, unit.v * this.height, this.unitSize(unit.level) * 0.36));
+    if (touched.length >= 2 && touched.every(unit => unit.species.id === touched[0].species.id)) {
+      this.mergeUnits(touched, stroke.color);
+      return;
+    }
+    if (stroke.points.length > 7 && polygonArea(stroke.points) > 600) {
+      this.resolveLoop(stroke);
+      return;
+    }
+    this.events.onHint(touched.length >= 2 ? '선에 다른 종류도 닿았어요!' : `같은 ${this.world === 'numbers' ? '숫자' : '동물'} 둘 이상을 선으로 이어봐!`);
   };
 
   private pointerCancel = (event: PointerEvent): void => { this.strokes.delete(event.pointerId); };
@@ -355,7 +407,7 @@ export class AnimalGame {
     }
     const candidates = [...bySpecies.entries()].filter(([, units]) => units.length >= 2);
     if (!candidates.length) {
-      this.events.onHint('같은 동물 둘 이상을 동그라미 안에 넣어봐!');
+      this.events.onHint(`같은 ${this.world === 'numbers' ? '숫자' : '동물'} 둘 이상을 동그라미 안에 넣어봐!`);
       return;
     }
     const [speciesId] = candidates.sort((a, b) => b[1].length - a[1].length)[0];
@@ -364,11 +416,14 @@ export class AnimalGame {
     center.x /= stroke.points.length;
     center.y /= stroke.points.length;
     if (blockers.length) {
-      this.addPop(center.x, center.y, '다른 동물이 있어요!', '#e86876');
-      this.events.onHint('다른 동물이 절반 이상 들어오지 않게 둘러봐!');
+      this.addPop(center.x, center.y, '다른 종류가 있어요!', '#e86876');
+      this.events.onHint('다른 종류가 절반 이상 들어오지 않게 둘러봐!');
       return;
     }
-    const selected = bySpecies.get(speciesId) || [];
+    this.mergeUnits(bySpecies.get(speciesId) || [], stroke.color);
+  }
+
+  private mergeUnits(selected: Unit[], color: string): void {
     const highest = selected.reduce((best, unit) => unit.level > best.level ? unit : best);
     const resultLevel = Math.min(MAX_LEVEL, highest.level + Math.floor(Math.log2(selected.length)));
     const growthBonus = resultLevel > highest.level
@@ -384,7 +439,7 @@ export class AnimalGame {
     this.events.onScore(this.score, gained);
     this.events.onMerge(resultLevel);
     this.burst(x * this.width, y * this.height, highest.species.accent, resultLevel, selected.length);
-    this.addPop(x * this.width, y * this.height, `+${gained}`, stroke.color);
+    this.addPop(x * this.width, y * this.height, `+${gained}`, color);
   }
 
   private removeUnit(unit: Unit): void {
@@ -428,8 +483,7 @@ export class AnimalGame {
     const cap = this.width < 550 ? 19 : this.width > 1500 ? 36 : 27;
     if (this.lastSpawn > 1.3 && this.units.length < target && this.units.length < cap) {
       this.lastSpawn = 0;
-      const species = SPECIES.filter(item => item.world === this.world);
-      const chosen = species[Math.floor(Math.random() * species.length)];
+      const chosen = this.kinds[Math.floor(Math.random() * this.kinds.length)];
       const point = this.openPosition();
       this.addUnit(chosen, 0, point.x, point.y);
     }
@@ -460,7 +514,7 @@ export class AnimalGame {
         unit.vx = unit.vx / oldSpeed * nextSpeed;
         unit.vy = unit.vy / oldSpeed * nextSpeed;
       }
-      const bob = Math.sin(now * 0.003 + unit.turn) * (this.world === 'sea' ? 3 : 1.5);
+      const bob = Math.sin(now * 0.003 + unit.turn) * (this.world === 'sea' || this.world === 'sky' ? 3 : 1.5);
       unit.sprite.position.set(unit.u * this.width, (1 - unit.v) * this.height - bob, 2 + unit.level);
       const size = this.unitSize(unit.level);
       let scaleX = size;
@@ -476,12 +530,14 @@ export class AnimalGame {
       unit.sprite.scale.set(scaleX, scaleY, 1);
       const heading = Math.atan2(-unit.vy, unit.vx);
       const material = unit.sprite.material as THREE.SpriteMaterial;
-      if (this.world === 'sea') {
+      if (this.world === 'sea' || this.world === 'sky') {
         const facingLeft = unit.vx < 0;
         material.map = this.textures.get(`${unit.species.id}:${facingLeft ? 'left' : 'right'}`) || null;
         material.rotation = heading - (facingLeft ? Math.PI : 0);
-      } else {
+      } else if (this.world === 'zoo') {
         material.rotation = heading - Math.PI / 2;
+      } else {
+        material.rotation = 0;
       }
     }
   }
@@ -493,6 +549,12 @@ export class AnimalGame {
         data.v -= data.speed * dt;
         if (data.v < -0.04) data.v = 1.04;
         object.position.y = (1 - data.v) * this.height;
+      }
+      if (data.cloud) {
+        data.u += data.speed * dt;
+        if (data.u > 1.12) data.u = -0.12;
+        object.position.x = data.u * this.width;
+        object.position.y = (1 - data.v) * this.height + Math.sin(now * 0.001 + data.phase) * 3;
       }
       object.rotation.z = Math.sin(now * 0.001 + data.phase) * (this.world === 'sea' ? 0.08 : 0.04);
     }

@@ -1,7 +1,7 @@
 {
   "name": "동글동글 동물 친구들",
   "short_name": "동글동글",
-  "description": "동물 친구들을 모아 합치는 1분 30초 게임",
+  "description": "동물과 숫자를 선으로 이어 합치는 1분 30초 게임",
   "lang": "ko",
   "start_url": "./",
   "scope": "./",

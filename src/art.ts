@@ -1,4 +1,4 @@
-export type World = 'zoo' | 'sea';
+export type World = 'zoo' | 'sea' | 'sky' | 'numbers';
 
 export interface Species {
   id: string;
@@ -19,8 +19,63 @@ export const SPECIES: Species[] = [
   { id: 'sunfish', name: '개복치', world: 'sea', color: '#879cae', accent: '#c6d8df' },
   { id: 'whaleshark', name: '고래상어', world: 'sea', color: '#668ca4', accent: '#d7e9eb' },
   { id: 'seadragon', name: '해룡', world: 'sea', color: '#d5a65a', accent: '#f3db91' },
+  { id: 'crowned-crane', name: '관학', world: 'sky', color: '#bd9b66', accent: '#f4d99b' },
+  { id: 'eagle', name: '독수리', world: 'sky', color: '#74513b', accent: '#f8dda3' },
+  { id: 'gull', name: '갈매기', world: 'sky', color: '#e5e5dc', accent: '#f9ecab' },
+  { id: 'sky-toucan', name: '큰부리새', world: 'sky', color: '#303644', accent: '#ffc85b' },
+  { id: 'macaw', name: '빨간 마코앵무', world: 'sky', color: '#e7473d', accent: '#ffd064' },
+  ...['#ef787e', '#f2a65a', '#f0cf65', '#72bba3', '#65b5d6', '#888ad6', '#b784ca', '#d889ab', '#81b66e', '#e89971'].map((color, digit) => ({
+    id: `digit-${digit}`, name: String(digit), world: 'numbers' as const, color, accent: color,
+  })),
 ];
 
+const digitAssets = new Map<string, string>();
+
 export function animalAssetUrl(id: string): string {
+  if (id.startsWith('digit-')) {
+    const cached = digitAssets.get(id);
+    if (cached) return cached;
+    const digit = Number(id.slice(6));
+    const color = SPECIES.find(species => species.id === id)?.color || '#ef787e';
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = 512;
+    const ctx = canvas.getContext('2d')!;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = "900 390px 'Arial Rounded MT Bold', 'Nunito', sans-serif";
+    ctx.lineJoin = 'round';
+    ctx.shadowColor = '#50647255';
+    ctx.shadowBlur = 16;
+    ctx.shadowOffsetY = 14;
+    ctx.lineWidth = 52;
+    ctx.strokeStyle = '#fff8e9';
+    ctx.strokeText(String(digit), 256, 265);
+    ctx.shadowColor = 'transparent';
+    ctx.shadowBlur = ctx.shadowOffsetY = 0;
+    ctx.lineWidth = 28;
+    ctx.strokeStyle = '#ffffffaa';
+    ctx.strokeText(String(digit), 256, 265);
+    const fill = ctx.createLinearGradient(80, 80, 420, 450);
+    fill.addColorStop(0, '#ffffff99');
+    fill.addColorStop(0.2, color);
+    fill.addColorStop(1, color);
+    ctx.fillStyle = fill;
+    ctx.fillText(String(digit), 256, 265);
+    let seed = digit + 1;
+    ctx.save();
+    ctx.globalCompositeOperation = 'source-atop';
+    for (let i = 0; i < 1800; i++) {
+      seed = (seed * 1664525 + 1013904223) >>> 0;
+      const x = seed % 512;
+      seed = (seed * 1664525 + 1013904223) >>> 0;
+      const y = seed % 512;
+      ctx.fillStyle = i % 3 ? '#ffffff25' : '#473c4020';
+      ctx.fillRect(x, y, i % 5 ? 2 : 4, 1);
+    }
+    ctx.restore();
+    const url = canvas.toDataURL('image/png');
+    digitAssets.set(id, url);
+    return url;
+  }
   return `${import.meta.env.BASE_URL}animals/${id}.png`;
 }
