@@ -68,7 +68,7 @@ function renderLobby(): void {
             </button>
           </div>
         </section>
-        <div class="lobby-footer"><span>👆 여러 명이 동시에 그릴 수 있어요</span><span>🏆 최고 점수는 이 기기에 저장돼요</span><span>✨ 동물은 4단계까지 커져요</span></div>
+        <div class="lobby-footer"><span>👆 여러 명이 동시에 그릴 수 있어요</span><span>🏆 최고 점수는 이 기기에 저장돼요</span><span>✨ 동물은 10단계까지 커져요</span></div>
       </main>
     </div>`;
   app.querySelectorAll<HTMLButtonElement>('[data-world]').forEach(button => button.addEventListener('click', () => startGame(button.dataset.world as World)));

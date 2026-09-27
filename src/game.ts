@@ -2,9 +2,10 @@ import * as THREE from 'three';
 import { animalAssetUrl, SPECIES, type Species, type World } from './art';
 
 type Point = { x: number; y: number };
-type Unit = { id: number; species: Species; level: number; u: number; v: number; vx: number; vy: number; turn: number; sprite: THREE.Sprite };
+type Unit = { id: number; species: Species; level: number; u: number; v: number; vx: number; vy: number; turn: number; mergePulse: number; sprite: THREE.Sprite };
 type Stroke = { points: Point[]; color: string };
-type Spark = { x: number; y: number; vx: number; vy: number; life: number; maxLife: number; color: string; radius: number };
+type Spark = { x: number; y: number; vx: number; vy: number; life: number; maxLife: number; color: string; radius: number; star: boolean };
+type Ripple = { x: number; y: number; life: number; maxLife: number; radius: number; color: string };
 type Pop = { x: number; y: number; label: string; life: number; color: string };
 
 export interface GameEvents {
@@ -16,7 +17,8 @@ export interface GameEvents {
 }
 
 const DURATION = 60;
-const POINTS = [30, 75, 180, 400];
+const MAX_LEVEL = 9;
+const POINTS = [30, 75, 180, 400, 850, 1700, 3300, 6300, 12000, 22000];
 const PLAYER_COLORS = ['#ef75a7', '#7f72ec', '#f7a743', '#41bfc0', '#e97865', '#76ac61'];
 
 function clamp(value: number, min: number, max: number): number { return Math.max(min, Math.min(max, value)); }
@@ -75,6 +77,7 @@ export class AnimalGame {
   private decor: THREE.Object3D[] = [];
   private strokes = new Map<number, Stroke>();
   private sparks: Spark[] = [];
+  private ripples: Ripple[] = [];
   private pops: Pop[] = [];
   private nextUnitId = 1;
   private width = 1;
@@ -87,6 +90,7 @@ export class AnimalGame {
   private lastSpawn = 0;
   private frame = 0;
   private resizeObserver: ResizeObserver;
+  private readonly reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   constructor(container: HTMLElement, world: World, events: GameEvents) {
     this.element = container;
@@ -278,14 +282,14 @@ export class AnimalGame {
     const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true, depthTest: false, depthWrite: false }));
     sprite.position.z = 2 + level;
     this.scene.add(sprite);
-    const unit = { id: this.nextUnitId++, species, level, u, v, vx, vy, turn: random(0, 7), sprite };
+    const unit = { id: this.nextUnitId++, species, level, u, v, vx, vy, turn: random(0, 7), mergePulse: 0, sprite };
     this.units.push(unit);
     return unit;
   }
 
   private travelSpeed(level: number): number {
     const mobile = this.width < 550;
-    return random(mobile ? 75 : 95, mobile ? 120 : 150) / (1 + level * 0.12);
+    return random(mobile ? 75 : 95, mobile ? 120 : 150) / (1 + Math.min(level, 4) * 0.12);
   }
 
   private openPosition(): Point {
@@ -301,7 +305,7 @@ export class AnimalGame {
 
   private unitSize(level: number): number {
     const base = clamp(Math.min(this.width, this.height) * 0.108, 44, 90);
-    return base * [1, 1.35, 1.7, 2.02][level];
+    return Math.min(base * (1 + level * 0.14), Math.min(this.width, this.height) * 0.32, 210);
   }
 
   private positionFromEvent(event: PointerEvent): Point {
@@ -366,17 +370,21 @@ export class AnimalGame {
     }
     const selected = bySpecies.get(speciesId) || [];
     const highest = selected.reduce((best, unit) => unit.level > best.level ? unit : best);
-    const resultLevel = Math.min(3, highest.level + Math.floor(Math.log2(selected.length)));
-    const gained = selected.reduce((sum, unit) => sum + (unit === highest ? 0 : POINTS[unit.level]), 0);
+    const resultLevel = Math.min(MAX_LEVEL, highest.level + Math.floor(Math.log2(selected.length)));
+    const growthBonus = resultLevel > highest.level
+      ? POINTS[resultLevel - 1] * (selected.length - 1)
+      : selected.filter(unit => unit !== highest && unit.level === MAX_LEVEL).length * POINTS[MAX_LEVEL];
+    const gained = selected.reduce((sum, unit) => sum + (unit === highest ? 0 : POINTS[unit.level]), growthBonus);
     const x = selected.reduce((sum, unit) => sum + unit.u, 0) / selected.length;
     const y = selected.reduce((sum, unit) => sum + unit.v, 0) / selected.length;
     for (const unit of selected) this.removeUnit(unit);
-    this.addUnit(highest.species, resultLevel, x, y);
+    const merged = this.addUnit(highest.species, resultLevel, x, y);
+    merged.mergePulse = this.reducedMotion ? 0 : 0.62;
     this.score += gained;
     this.events.onScore(this.score, gained);
     this.events.onMerge(resultLevel);
-    this.burst(x * this.width, y * this.height, highest.species.accent);
-    this.addPop(center.x, center.y, `+${gained}`, stroke.color);
+    this.burst(x * this.width, y * this.height, highest.species.accent, resultLevel, selected.length);
+    this.addPop(x * this.width, y * this.height, `+${gained}`, stroke.color);
   }
 
   private removeUnit(unit: Unit): void {
@@ -387,11 +395,19 @@ export class AnimalGame {
 
   private addPop(x: number, y: number, label: string, color: string): void { this.pops.push({ x, y, label, color, life: 1.1 }); }
 
-  private burst(x: number, y: number, color: string): void {
-    for (let i = 0; i < 16; i++) {
-      const a = Math.PI * 2 * i / 16 + random(-0.13, 0.13);
-      const speed = random(80, 160);
-      this.sparks.push({ x, y, vx: Math.cos(a) * speed, vy: Math.sin(a) * speed, life: random(0.45, 0.8), maxLife: 0.8, color: i % 3 === 0 ? '#fff' : color, radius: random(2.5, 5.5) });
+  private burst(x: number, y: number, color: string, level: number, mergedCount: number): void {
+    const count = this.reducedMotion ? 8 : Math.min(38, 18 + level * 4 + mergedCount * 2);
+    const colors = [color, '#fffdf1', '#ffd54d'];
+    const startRadius = this.unitSize(level) * 0.52;
+    for (let i = 0; i < count; i++) {
+      const a = Math.PI * 2 * i / count + random(-0.16, 0.16);
+      const speed = random(80, 155 + Math.min(level, 4) * 18);
+      const life = random(0.42, 0.75);
+      this.sparks.push({ x: x + Math.cos(a) * startRadius, y: y + Math.sin(a) * startRadius, vx: Math.cos(a) * speed, vy: Math.sin(a) * speed, life, maxLife: life, color: colors[i % colors.length], radius: random(3, 6.5), star: i % 3 === 0 });
+    }
+    if (!this.reducedMotion) {
+      this.ripples.push({ x, y, life: 0.44, maxLife: 0.44, radius: 60 + Math.min(level, 4) * 13, color: '#fffdf1' });
+      this.ripples.push({ x, y, life: 0.58, maxLife: 0.58, radius: 88 + Math.min(level, 4) * 17, color });
     }
   }
 
@@ -447,7 +463,17 @@ export class AnimalGame {
       const bob = Math.sin(now * 0.003 + unit.turn) * (this.world === 'sea' ? 3 : 1.5);
       unit.sprite.position.set(unit.u * this.width, (1 - unit.v) * this.height - bob, 2 + unit.level);
       const size = this.unitSize(unit.level);
-      unit.sprite.scale.set(size, size, 1);
+      let scaleX = size;
+      let scaleY = size;
+      if (unit.mergePulse > 0) {
+        unit.mergePulse = Math.max(0, unit.mergePulse - dt);
+        const progress = 1 - unit.mergePulse / 0.62;
+        const bounce = 0.42 * Math.exp(-4 * progress) * Math.sin(3 * Math.PI * progress);
+        const wobble = 0.08 * Math.exp(-5 * progress) * Math.sin(5 * Math.PI * progress);
+        scaleX *= 1 + bounce + wobble;
+        scaleY *= 1 + bounce - wobble;
+      }
+      unit.sprite.scale.set(scaleX, scaleY, 1);
       const heading = Math.atan2(-unit.vy, unit.vx);
       const material = unit.sprite.material as THREE.SpriteMaterial;
       if (this.world === 'sea') {
@@ -494,6 +520,20 @@ export class AnimalGame {
       ctx.fillStyle = '#fff';
       ctx.fill();
     }
+    this.ripples = this.ripples.filter(ripple => ripple.life > 0);
+    for (const ripple of this.ripples) {
+      ripple.life -= dt;
+      const progress = 1 - Math.max(0, ripple.life) / ripple.maxLife;
+      ctx.globalAlpha = (1 - progress) * 0.82;
+      ctx.beginPath();
+      ctx.arc(ripple.x, ripple.y, 12 + ripple.radius * progress, 0, Math.PI * 2);
+      ctx.strokeStyle = ripple.color;
+      ctx.lineWidth = 6 * (1 - progress) + 1;
+      ctx.shadowColor = ripple.color;
+      ctx.shadowBlur = 12;
+      ctx.stroke();
+    }
+    ctx.shadowBlur = 0;
     this.sparks = this.sparks.filter(spark => spark.life > 0);
     for (const spark of this.sparks) {
       spark.life -= dt;
@@ -503,7 +543,20 @@ export class AnimalGame {
       spark.vy *= 1 - dt * 2;
       ctx.globalAlpha = clamp(spark.life / spark.maxLife, 0, 1);
       ctx.beginPath();
-      ctx.arc(spark.x, spark.y, spark.radius, 0, Math.PI * 2);
+      if (spark.star) {
+        const r = spark.radius * 1.4;
+        ctx.moveTo(spark.x, spark.y - r);
+        ctx.lineTo(spark.x + r * 0.25, spark.y - r * 0.25);
+        ctx.lineTo(spark.x + r, spark.y);
+        ctx.lineTo(spark.x + r * 0.25, spark.y + r * 0.25);
+        ctx.lineTo(spark.x, spark.y + r);
+        ctx.lineTo(spark.x - r * 0.25, spark.y + r * 0.25);
+        ctx.lineTo(spark.x - r, spark.y);
+        ctx.lineTo(spark.x - r * 0.25, spark.y - r * 0.25);
+        ctx.closePath();
+      } else {
+        ctx.arc(spark.x, spark.y, spark.radius, 0, Math.PI * 2);
+      }
       ctx.fillStyle = spark.color;
       ctx.fill();
     }
